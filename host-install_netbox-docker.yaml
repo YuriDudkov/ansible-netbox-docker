@@ -1,0 +1,70 @@
+---
+- hosts: servers
+  become: true
+  become_method: su
+
+  tasks:
+    - name: install docker, docker-compose and some other necessary packages
+      apt:
+        name: "{{item}}"
+        state: present
+        update_cache: yes
+      loop:
+        - docker.io
+        - docker-compose
+        - python3-pexpect
+
+    - name: check docker is active
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Fix "403 Forbidden docker.io" error)
+      copy:
+        src: daemon.json
+        dest: /etc/docker/
+        remote_src: no
+        mode: 0644
+        owner: root
+        group: root
+
+    - name: reload docker.service
+      systemd:
+        name: docker
+        state: reloaded
+
+    - name: Clone netbox-docker
+      git:
+        repo: "https://github.com/netbox-community/netbox-docker"
+        dest: /opt/netbox-docker
+
+    - name: Copy docker-compose.override.yml
+      copy:
+        src: docker-compose.override.yml
+        dest: /opt/netbox-docker
+        remote_src: no
+        mode: 0644
+        owner: root
+        group: root
+
+    - name: Run docker-compose
+      command: docker-compose up -d
+      args:
+        chdir: /opt/netbox-docker
+
+    - name: Create NetBox superuser
+      expect:
+        command: "docker-compose exec netbox /opt/netbox/netbox/manage.py createsuperuser"
+        responses:
+          (?i)Username: "netboxadmin"
+          (?i)Email address: "admin@domain.ru"
+          (?i)Password: "netboxadmin"
+          (?i)Password (again): "netboxadmin"
+        chdir: /opt/netbox-docker
+
+
+    - name: Display message
+      debug:
+        msg: All tasks are complited!
+

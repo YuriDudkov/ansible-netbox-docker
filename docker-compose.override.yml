@@ -1,0 +1,6 @@
+services:
+  netbox:
+    ports:
+    - 80:8080
+    healthcheck:
+      start_period: 120s
