@@ -3,8 +3,12 @@
   become: true
   become_method: su
 
+  vars:
+    netbox_su: netboxadmin
+    netbox_su_pass: netboxadmin
+
   tasks:
-    - name: install docker, docker-compose and some other necessary packages
+    - name: Install docker, docker-compose and some other necessary packages
       apt:
         name: "{{item}}"
         state: present
@@ -14,13 +18,13 @@
         - docker-compose
         - python3-pexpect
 
-    - name: check docker is active
+    - name: Check docker is active
       service:
         name: docker
         state: started
         enabled: yes
 
-    - name: Fix "403 Forbidden docker.io" error)
+    - name: Fix "403 Forbidden docker.io" error
       copy:
         src: daemon.json
         dest: /etc/docker/
@@ -29,7 +33,7 @@
         owner: root
         group: root
 
-    - name: reload docker.service
+    - name: Reload docker.service
       systemd:
         name: docker
         state: reloaded
@@ -53,18 +57,17 @@
       args:
         chdir: /opt/netbox-docker
 
-    - name: Create NetBox superuser
+    - name: Create NetBox superuser 
       expect:
         command: "docker-compose exec netbox /opt/netbox/netbox/manage.py createsuperuser"
         responses:
-          (?i)Username: "netboxadmin"
+          (?i)Username: "{{netbox_su}}"
           (?i)Email address: "admin@domain.ru"
-          (?i)Password: "netboxadmin"
-          (?i)Password (again): "netboxadmin"
+          (?i)Password: "{{netbox_su_pass}}"
+          (?i)Password (again): "{{netbox_su_pass}}"
         chdir: /opt/netbox-docker
 
 
     - name: Display message
       debug:
-        msg: All tasks are complited!
-
+        msg: "All tasks are complited! Try netbox on http://{{inventory_hostname}} use login/password: {{netbox_su}} /{{netbox_su_pass}}"
